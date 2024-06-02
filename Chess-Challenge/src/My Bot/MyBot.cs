@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using static ChessChallenge.API.BitboardHelper;
 using static System.Math;
+using System.Threading;
 
 public class MyBot : IChessBot
 {
@@ -13,7 +14,7 @@ public class MyBot : IChessBot
     private Dictionary<ulong, double> evalCache = new Dictionary<ulong, double>();
     private Dictionary<ulong, double> maxABCache = new Dictionary<ulong, double>();
     private Dictionary<ulong, double> minABCache = new Dictionary<ulong, double>();
-
+    private Int16 numMoves= 0;
     
 
 
@@ -29,8 +30,18 @@ public class MyBot : IChessBot
     }
     
 
-    public Move Think(Board boardOrig, Timer timerOrig)
+    public Move Think(Board boardOrig, ChessChallenge.API.Timer timerOrig)
     {
+        if (numMoves == 3)
+        {
+            evalCache.Clear();
+            maxABCache.Clear();
+            minABCache.Clear();
+            numMoves = 0;
+        }
+
+        numMoves += 1;
+        
         if (!bookInitialized)
         {
             InitalizeBook();
@@ -433,7 +444,7 @@ public class MyBot : IChessBot
             case PieceType.Bishop:
                 return 330;
             case PieceType.Rook:
-                return 500;
+                return 550;
             case PieceType.Queen:
                 return 900;
             case PieceType.King:

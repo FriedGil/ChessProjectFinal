@@ -1,3 +1,3 @@
-Chess Coding Project by Gil Friedman, Enzo Smajlaj, and Nathaniel Ng. Completed for Post-AP-CS Game Programming.
+Post-AP Game Dev Final.
 
-Implemented with ab-pruning and a custom evaluation function.
+Clone and run with IDE.

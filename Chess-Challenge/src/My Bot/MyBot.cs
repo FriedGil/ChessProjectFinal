@@ -20,10 +20,11 @@ public class MyBot : IChessBot
     public void InitalizeBook()
     {
         book.Add("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1","e2e4");
-        book.Add("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1","e7e6");
-        book.Add("rnbqkbnr/pppp1ppp/4p3/8/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2", "d7d5");
-        book.Add("rnbqkbnr/ppp2ppp/4p3/3P4/3P4/8/PPP2PPP/RNBQKBNR b KQkq - 0 3", "e6d5");
-
+        book.Add("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1","e7e5");
+        book.Add("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2", "g1f3");
+        book.Add("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "b8c6");
+        book.Add("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "f1c4");
+        book.Add("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", "f3g5");
         bookInitialized = true;
     }
     
@@ -56,9 +57,9 @@ public class MyBot : IChessBot
         
         double bestValue = int.MinValue;
 
-        Console.WriteLine(board.GetFenString());
-        Console.WriteLine(board.GetFenString().Equals("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"));
-        
+        Console.WriteLine("min cache len: " + minABCache.Count);
+        Console.WriteLine("max cache len: " + maxABCache.Count);
+
         if (book.ContainsKey(board.GetFenString()))
         {
             Console.WriteLine("book move :)");
@@ -112,7 +113,7 @@ public class MyBot : IChessBot
                     break;
                 }
             }
-            if (depth >= 3) maxABCache.Add(board.ZobristKey,maxEval);
+            if (depth >= 4) maxABCache.Add(board.ZobristKey,maxEval);
             return maxEval;
         }
         else
@@ -134,7 +135,7 @@ public class MyBot : IChessBot
                     break;
                 }
             }
-            if (depth >= 3) minABCache.Add(board.ZobristKey,minEval);
+            if (depth >= 4) minABCache.Add(board.ZobristKey,minEval);
             return minEval;
         }
     }
@@ -151,21 +152,63 @@ public class MyBot : IChessBot
         // //piece values
         foreach (var pieces in board.GetAllPieceLists())
         {
-            foreach (var piece in pieces)
+            if (board.PlyCount <= 14)
             {
-                if (board.IsWhiteToMove)
+                foreach (var piece in pieces)
                 {
-                    if (!piece.IsWhite) eval += GetAdjustedPieceValue(piece);
-                    else eval -= GetAdjustedPieceValue(piece);
-                }
-                else
-                {
-                    if (piece.IsWhite) eval += GetAdjustedPieceValue(piece);
-                    else eval -= GetAdjustedPieceValue(piece);
-        
+                    if (board.IsWhiteToMove)
+                    {
+                        if (!piece.IsWhite) eval += GetEarlyAdjustedPieceValue(piece);
+                        else eval -= GetEarlyAdjustedPieceValue(piece);
+                    }
+                    else
+                    {
+                        if (piece.IsWhite) eval += GetEarlyAdjustedPieceValue(piece);
+                        else eval -= GetEarlyAdjustedPieceValue(piece);
+
+                    }
                 }
             }
+
+            else if (board.PlyCount is < 60 and > 14)
+            {
+
+                foreach (var piece in pieces)
+                {
+                    if (board.IsWhiteToMove)
+                    {
+                        if (!piece.IsWhite) eval += GetAdjustedPieceValue(piece);
+                        else eval -= GetAdjustedPieceValue(piece);
+                    }
+                    else
+                    {
+                        if (piece.IsWhite) eval += GetAdjustedPieceValue(piece);
+                        else eval -= GetAdjustedPieceValue(piece);
+
+                    }
+                }
+            }
+            else
+            {
+                foreach (var piece in pieces)
+                {
+                    if (board.IsWhiteToMove)
+                    {
+                        if (!piece.IsWhite) eval += GetLateAdjustedPieceValue(piece);
+                        else eval -= GetLateAdjustedPieceValue(piece);
+                    }
+                    else
+                    {
+                        if (piece.IsWhite) eval += GetLateAdjustedPieceValue(piece);
+                        else eval -= GetLateAdjustedPieceValue(piece);
+
+                    }
+                }
+
+            }
         }
+
+
         //
         // //castling
         // if (board.GetKingSquare(true) == new Square("g1") && board.GetPiece(new Square("f1")).PieceType == PieceType.Rook)  eval += 100;
@@ -247,6 +290,11 @@ public class MyBot : IChessBot
             {
                 fileMultiplier = 1.25;
             }
+
+            if (piece.Square.File == 0 || piece.Square.File == 7)
+            {
+                fileMultiplier = 0.75;
+            }
             
         }
         
@@ -256,14 +304,124 @@ public class MyBot : IChessBot
             activityMultiplier = 1.5;
         }
         
-        val = (9 * val + val * fileMultiplier) / 10;
-        val = (9 * val + val * rowMultiplier) / 10;
-        val = (1 * val + val * activityMultiplier) / 2;
-
-        
-        
+        val = (7 * val + val * fileMultiplier) / 8;
+        val = (7 * val + val * rowMultiplier) / 8;
+        val = (7 * val + val * activityMultiplier) / 8;
         return val;
     }
+    
+    private double GetLateAdjustedPieceValue(Piece piece)
+    {
+        double val = GetPieceValue(piece);
+        double fileMultiplier = 1;
+        double rowMultiplier = 1;
+        double activityMultiplier = 1;
+        if (piece.IsKnight)
+        {
+            fileMultiplier = 90.0 * 7 / 16 / Abs(piece.Square.File * 100 - 350); //from *2 to *100/350 
+            rowMultiplier = 110.0 * 7 / 16 / Abs(piece.Square.Rank * 100 - 350); //from *2 to *100/350
+        }
+        if (piece.IsBishop)
+        {
+            fileMultiplier = 90.0 * 7 / 16 / Abs(piece.Square.File * 100 - 350); //from *2 to *100/350 
+            rowMultiplier = 110.0 * 7 / 16 / Abs(piece.Square.Rank * 100 - 350); //from *2 to *100/350
+        }
+        if (piece.IsPawn)
+        {
+            if (piece.IsWhite)
+            {
+                rowMultiplier = (1.5*piece.Square.File / 7.0 + 1.5) / 1.5;
+            }
+            else
+            {
+                rowMultiplier = ((7-1.5*piece.Square.File) / 7.0 + 1.5) / 1.5;
+            }
+            
+            if (piece.Square.File == 3 || piece.Square.File == 4)
+            {
+                fileMultiplier = 1.25;
+            }
+
+            if (piece.Square.File == 0 || piece.Square.File == 7)
+            {
+                fileMultiplier = 0.75;
+            }
+            
+        }
+        
+        if (piece.IsBishop && (piece.Square.Equals(new Square(1, 1)) || piece.Square.Equals(new Square(1, 6)) ||
+                               piece.Square.Equals(new Square(6, 1)) || piece.Square.Equals(new Square(6, 6))))
+        {
+            activityMultiplier = 1.5;
+        }
+        
+        val = (10 * val + val * fileMultiplier) / 11;
+        val = (10 * val + val * rowMultiplier) / 11;
+        val = (10 * val + val * activityMultiplier) / 11;
+        return val;
+    }
+
+    private double GetEarlyAdjustedPieceValue(Piece piece)
+    {
+        double val = GetPieceValue(piece);
+        double fileMultiplier = 1;
+        double rowMultiplier = 1;
+        double activityMultiplier = 1;
+        if (piece.IsKnight)
+        {
+            fileMultiplier = 90.0 * 7 / 16 / Abs(piece.Square.File * 100 - 350); //from *2 to *100/350 
+            rowMultiplier = 110.0 * 7 / 16 / Abs(piece.Square.Rank * 100 - 350); //from *2 to *100/350
+        }
+
+        if (piece.IsBishop)
+        {
+            fileMultiplier = 90.0 * 7 / 16 / Abs(piece.Square.File * 100 - 350); //from *2 to *100/350 
+            rowMultiplier = 110.0 * 7 / 16 / Abs(piece.Square.Rank * 100 - 350); //from *2 to *100/350
+        }
+
+        if (piece.IsPawn)
+        {
+            if (piece.IsWhite)
+            {
+                rowMultiplier = (1.5 * piece.Square.File / 7.0 + 1.5) / 1.5;
+            }
+            else
+            {
+                rowMultiplier = ((7 - 1.5 * piece.Square.File) / 7.0 + 1.5) / 1.5;
+            }
+
+            if (piece.Square.File == 3 || piece.Square.File == 4)
+            {
+                fileMultiplier = 1.25;
+            }
+
+            if (piece.Square.File == 0 || piece.Square.File == 7)
+            {
+                fileMultiplier = 0.75;
+            }
+
+        }
+
+        if (piece.IsBishop && (piece.Square.Equals(new Square(1, 1)) || piece.Square.Equals(new Square(1, 6)) ||
+                               piece.Square.Equals(new Square(6, 1)) || piece.Square.Equals(new Square(6, 6))))
+        {
+            activityMultiplier = 1.5;
+        }
+
+        if (piece.IsQueen)
+        {
+            if (piece.Square.Equals(new Square("d1")) || piece.Square.Equals(new Square("d8")))
+            {
+                activityMultiplier *= 2;
+            }
+        }
+
+        val = (5 * val + val * fileMultiplier) / 6;
+        val = (5 * val + val * rowMultiplier) / 6;
+        val = (5 * val + val * activityMultiplier) / 6;
+        return val;
+    }
+
     private double GetPieceValue(Piece piece)
     {
         switch (piece.PieceType)
@@ -284,5 +442,8 @@ public class MyBot : IChessBot
                 return 0;
         }
     }
+    
+    
+    
     
 }
